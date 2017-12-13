@@ -9,6 +9,9 @@ var Room = require('./Room');
 var PokerManager = require('./PokerManager');
 var pokerManager = new PokerManager();
 
+var PokerHelper = require('./PokerHelper');
+var pokerHelper = new PokerHelper();
+
 var sessionMiddleWare = session({
 	secret: 'puppyyyuan',
 	cookie: {
@@ -184,11 +187,35 @@ io.on('connection', function (socket) {
 	});
 
 	// 出牌
-	socket.on('play', function (msg) {
+	socket.on('play', function (pokerList) {
 		var player = socket.request.session.player;
 		var room = rooms[player.roomNum];
+		console.dir(pokerList);
+		if (player.index !== room.currentPlayIndex) {
+			socket.emit('playNotify', '还不到你出牌！');
+			return;
+		}
 
-		
+		if (!pokerList || pokerList.length == 0) {
+			socket.emit('playNotify', '请选择你要出的牌');
+			return;
+		}
+
+		try {
+			var pokerWrapper = pokerHelper.getPokerWrapper(pokerList);
+			console.dir(pokerWrapper);
+
+			var result = pokerWrapper.follow([ 39, 38, 37, 35 ]);
+			console.dir(result);
+
+		} catch (err) {
+			
+			socket.emit('playNotify', err);
+			return;
+		}
+
+		arrayPokerDifference(player.pokerList, pokerList);
+
 	});
 
 	// 离开游戏
@@ -230,5 +257,33 @@ function dealCards(room) {
 			lord: lordIndex == i
 		};
 		io.to(player.socketId).emit('dealCards', obj);
+	}
+}
+
+function arrayPokerDifference(a, b) {
+	var map = {};
+
+	for (var i = 0; i < b.length; i++) {
+		var pokerB = b[i];
+		map[pokerB] = pokerB;
+	}
+
+	var flag = true;
+	while (flag) {
+		var index = -1;
+		for (var j = 0; j < a.length; j++) {
+			var pokerA = a[i];
+			if (map[pokerA]) {
+				index = i;
+				flag = true;
+				break;
+			}
+		}
+
+		if (index == -1) {
+			flag = false;
+		} else {
+			a.splice(index, 1);
+		}
 	}
 }
